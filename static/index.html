@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Emotion Recognition</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        height: 100vh;
+        margin: 0;
+        background-image: url("/static/image_2.jpg");
+        background-size: cover;
+        background-position: center;
+      }
+
+      h1 {
+        text-align: center;
+        color: white;
+        font-size: 36px;
+        margin-bottom: 20px;
+      }
+
+      #container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 80%;
+      }
+
+      #upload-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        border: 2px solid #ccc;
+        border-radius: 10px;
+        background-color: #333;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        width: 40%;
+        height: 300px;
+        justify-content: center;
+        color: white;
+      }
+
+      #upload-button {
+        position: relative;
+        overflow: hidden;
+        padding: 10px 20px;
+        background-color: #3498db;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-bottom: 10px;
+        text-align: center;
+        width: 150px;
+      }
+
+      #upload-button input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+      }
+
+      #predict-button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        width: 150px;
+      }
+
+      #media-player {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 40%;
+      }
+
+      video,
+      audio {
+        margin-top: 20px;
+        width: 100%;
+        height: 300px;
+        max-width: 100%;
+        display: block;
+      }
+
+      #status {
+        margin-top: 20px;
+        font-size: 18px;
+        display: none;
+        color: white;
+      }
+
+      #emoji {
+        font-size: 50px;
+        display: block;
+      }
+
+      #response-container {
+        margin-top: 20px;
+        padding: 20px;
+        border: 2px solid #4caf50;
+        border-radius: 10px;
+        background-color: rgba(0, 0, 0, 0.5);
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        color: white;
+        text-align: center;
+        display: none;
+      }
+
+      #response {
+        font-size: 24px;
+      }
+
+      .spinner {
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Emotion Recognition</h1>
+    <div id="container">
+      <form id="upload-form">
+        <label id="upload-button">
+          Upload File
+          <input type="file" id="file-input" accept="audio/*,video/*,.wav" />
+        </label>
+        <button type="button" id="predict-button">Predict</button>
+      </form>
+
+      <div id="media-player">
+        <video id="video-player" controls class="hidden"></video>
+        <audio id="audio-player" controls class="hidden"></audio>
+      </div>
+    </div>
+
+    <div id="status">
+      <div class="spinner"></div>
+      <span>Processing...</span>
+    </div>
+
+    <div id="response-container">
+      <div id="emoji"></div>
+      <div id="response"></div>
+    </div>
+
+    <script>
+      document
+        .getElementById("file-input")
+        .addEventListener("change", function (event) {
+          const file = event.target.files[0];
+          const fileType = file.type;
+
+          console.log("File selected:", file);
+          console.log("File type:", fileType);
+
+          const videoPlayer = document.getElementById("video-player");
+          const audioPlayer = document.getElementById("audio-player");
+
+          // Reset the players and hide them initially
+          videoPlayer.classList.add("hidden");
+          audioPlayer.classList.add("hidden");
+          videoPlayer.src = "";
+          audioPlayer.src = "";
+
+          if (fileType.startsWith("video/")) {
+            console.log("Displaying video player");
+            videoPlayer.src = URL.createObjectURL(file);
+            videoPlayer.classList.remove("hidden");
+          } else if (fileType === "audio/wav" || file.name.endsWith(".wav")) {
+            console.log("Displaying audio player for .wav file");
+            audioPlayer.src = URL.createObjectURL(file);
+            audioPlayer.classList.remove("hidden");
+
+            // Log to ensure the audio player is properly loaded
+            audioPlayer.addEventListener("loadeddata", () => {
+              console.log("Audio loaded and ready to play");
+              audioPlayer.play(); // Optional: start playing automatically
+            });
+          } else {
+            console.log("Unsupported file type");
+          }
+        });
+
+      document
+        .getElementById("predict-button")
+        .addEventListener("click", async () => {
+          const fileInput = document.getElementById("file-input");
+          const file = fileInput.files[0];
+
+          if (!file) {
+            alert("Please select a file first");
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const statusDiv = document.getElementById("status");
+          const responseContainer =
+            document.getElementById("response-container");
+          const responseDiv = document.getElementById("response");
+          const emojiDiv = document.getElementById("emoji");
+
+          // Show processing spinner
+          statusDiv.style.display = "flex";
+          responseDiv.innerText = "";
+          emojiDiv.innerText = "";
+
+          try {
+            const response = await fetch("/predict", {
+              method: "POST",
+              body: formData,
+            });
+
+            const result = await response.json();
+
+            // Hide the spinner
+            statusDiv.style.display = "none";
+
+            if (response.ok) {
+              const emotion = result.prediction;
+              const emoji = getEmotionEmoji(emotion);
+              responseDiv.innerHTML = `Detected Emotion: ${emotion}`;
+              emojiDiv.innerText = emoji;
+              responseContainer.style.display = "block"; // Show response div
+            } else {
+              responseDiv.innerText = `Error: ${result.error}`;
+            }
+          } catch (error) {
+            statusDiv.style.display = "none";
+            responseDiv.innerText = `Error: ${error.message}`;
+          }
+        });
+
+      function getEmotionEmoji(emotion) {
+        const emojis = {
+          angry: "😡",
+          calm: "😌",
+          disgust: "🤢",
+          fear: "😨",
+          happy: "😊",
+          neutral: "😐",
+          sad: "😢",
+          surprise: "😮",
+        };
+        return emojis[emotion] || "❓";
+      }
+    </script>
+  </body>
+</html>
